@@ -120,9 +120,9 @@ func main() {
 							slog.Warn("Failed to fetch mangled", "url", mangledURL, "error", err)
 						} else {
 							collected++
-							pageType := "soft_404"
+							pageType := "s4" // soft_404
 							if status == 404 {
-								pageType = "error"
+								pageType = "er" // error
 							}
 							slog.Info("Collected mangled", "url", mangledURL, "status", status, "type", pageType, "total", collected)
 						}
@@ -368,9 +368,9 @@ func fetchAndSaveMangled(client *http.Client, mangledURL, userAgent, outputDir s
 		return status, fmt.Errorf("unexpected status %d for mangled URL", status)
 	}
 
-	pageType := "soft_404"
+	pageType := "s4" // soft_404
 	if status == 404 {
-		pageType = "error"
+		pageType = "er" // error
 	}
 
 	filename := saveHTMLFile(html, mangledURL, outputDir)
