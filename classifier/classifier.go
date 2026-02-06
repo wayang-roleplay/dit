@@ -7,10 +7,11 @@ import (
 	"github.com/happyhackingspace/dit/internal/htmlutil"
 )
 
-// FormFieldClassifier detects HTML form and field types.
+// FormFieldClassifier detects HTML form, field, and page types.
 type FormFieldClassifier struct {
 	FormModel  *FormTypeModel
 	FieldModel *FieldTypeModel
+	PageModel  *PageTypeModel
 }
 
 // ClassifyResult holds the classification result for a form.
@@ -59,6 +60,68 @@ func (c *FormFieldClassifier) ClassifyProba(form *goquery.Selection, threshold f
 	}
 
 	return result
+}
+
+// ClassifyPage classifies the page type using form results as features.
+func (c *FormFieldClassifier) ClassifyPage(doc *goquery.Document) string {
+	formResults := c.classifyFormsOnDoc(doc)
+	return c.PageModel.Classify(doc, formResults)
+}
+
+// ClassifyPageProba returns page type probabilities.
+func (c *FormFieldClassifier) ClassifyPageProba(doc *goquery.Document, threshold float64) map[string]float64 {
+	formResults := c.classifyFormsOnDoc(doc)
+	proba := c.PageModel.ClassifyProba(doc, formResults)
+	return thresholdMap(proba, threshold)
+}
+
+// ExtractPage classifies both the page type and forms from HTML.
+func (c *FormFieldClassifier) ExtractPage(htmlStr string, proba bool, threshold float64, classifyFields bool) ([]FormResult, ClassifyResult, ClassifyProbaResult, error) {
+	doc, err := htmlutil.LoadHTMLString(htmlStr)
+	if err != nil {
+		return nil, ClassifyResult{}, ClassifyProbaResult{}, err
+	}
+
+	forms := htmlutil.GetForms(doc)
+	formResults := make([]FormResult, len(forms))
+	var classifyResults []ClassifyResult
+
+	for i, form := range forms {
+		formResults[i].FormHTML, _ = form.Html()
+		if proba {
+			formResults[i].Proba = c.ClassifyProba(form, threshold, classifyFields)
+		} else {
+			formResults[i].Result = c.Classify(form, classifyFields)
+		}
+		classifyResults = append(classifyResults, c.Classify(form, false))
+	}
+
+	var pageResult ClassifyResult
+	var pageProba ClassifyProbaResult
+	if c.PageModel != nil {
+		if proba {
+			pageProba = ClassifyProbaResult{
+				Form: c.PageModel.ClassifyProba(doc, classifyResults),
+			}
+			pageProba.Form = thresholdMap(pageProba.Form, threshold)
+		} else {
+			pageResult = ClassifyResult{
+				Form: c.PageModel.Classify(doc, classifyResults),
+			}
+		}
+	}
+
+	return formResults, pageResult, pageProba, nil
+}
+
+// classifyFormsOnDoc runs form classification on all forms in a document.
+func (c *FormFieldClassifier) classifyFormsOnDoc(doc *goquery.Document) []ClassifyResult {
+	forms := htmlutil.GetForms(doc)
+	results := make([]ClassifyResult, len(forms))
+	for i, form := range forms {
+		results[i] = c.Classify(form, false)
+	}
+	return results
 }
 
 // ExtractForms extracts and classifies all forms from HTML.

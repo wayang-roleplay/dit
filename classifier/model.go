@@ -9,16 +9,18 @@ import (
 	"github.com/happyhackingspace/dit/crf"
 )
 
-// UnifiedModel holds both form and field models for serialization.
+// UnifiedModel holds form, field, and page models for serialization.
 type UnifiedModel struct {
 	FormModel  *FormTypeModel `json:"form_model"`
 	FieldModel *crf.Model     `json:"field_model"`
+	PageModel  *PageTypeModel `json:"page_model"`
 }
 
 // SaveModel saves the classifier to disk.
 func (c *FormFieldClassifier) SaveModel(path string) error {
 	um := UnifiedModel{
 		FormModel: c.FormModel,
+		PageModel: c.PageModel,
 	}
 	if c.FieldModel != nil {
 		um.FieldModel = c.FieldModel.CRF
@@ -51,6 +53,7 @@ func LoadClassifier(path string) (*FormFieldClassifier, error) {
 
 	c := &FormFieldClassifier{
 		FormModel: um.FormModel,
+		PageModel: um.PageModel,
 	}
 
 	if um.FormModel != nil {
@@ -59,6 +62,10 @@ func LoadClassifier(path string) (*FormFieldClassifier, error) {
 
 	if um.FieldModel != nil {
 		c.FieldModel = &FieldTypeModel{CRF: um.FieldModel}
+	}
+
+	if um.PageModel != nil {
+		um.PageModel.InitRuntime()
 	}
 
 	return c, nil

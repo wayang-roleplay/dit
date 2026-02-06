@@ -2,6 +2,9 @@ package dit
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/happyhackingspace/dit/classifier"
@@ -26,12 +29,15 @@ type EvalResult struct {
 	FormAccuracy     float64
 	FieldAccuracy    float64
 	SequenceAccuracy float64
+	PageAccuracy     float64
 	FormCorrect      int
 	FormTotal        int
 	FieldCorrect     int
 	FieldTotal       int
 	SequenceCorrect  int
 	SequenceTotal    int
+	PageCorrect      int
+	PageTotal        int
 }
 
 // Train trains a classifier on annotated HTML forms in the given data directory.
@@ -41,7 +47,7 @@ func Train(dataDir string, config *TrainConfig) (*Classifier, error) {
 		verbose = config.Verbose
 	}
 
-	store := storage.NewStorage(dataDir)
+	store := storage.NewStorage(filepath.Join(dataDir, "forms"))
 	opts := storage.DefaultIterOptions()
 	opts.Verbose = verbose
 	annotations, err := store.IterAnnotations(opts)
@@ -69,9 +75,29 @@ func Train(dataDir string, config *TrainConfig) (*Classifier, error) {
 		fieldModel = classifier.TrainFieldType(crfSequences, crfConfig)
 	}
 
+	// Train page type classifier (if page data exists)
+	var pageModel *classifier.PageTypeModel
+	pagesDir := filepath.Join(dataDir, "pages")
+	if _, err := os.Stat(filepath.Join(pagesDir, "index.json")); err == nil {
+		pageStore := storage.NewPageStorage(pagesDir)
+		pageOpts := storage.DefaultIterOptions()
+		pageOpts.Verbose = verbose
+		pageAnnotations, err := pageStore.IterPageAnnotations(pageOpts)
+		if err != nil {
+			slog.Warn("Failed to load page annotations", "error", err)
+		} else if len(pageAnnotations) > 0 {
+			slog.Info("Training page type classifier", "annotations", len(pageAnnotations))
+			docs, formResults, urls, labels := extractPageTrainingData(pageAnnotations, formModel)
+			pageConfig := classifier.DefaultPageTypeTrainConfig()
+			pageConfig.Verbose = verbose
+			pageModel = classifier.TrainPageType(docs, formResults, urls, labels, pageConfig)
+		}
+	}
+
 	fc := &classifier.FormFieldClassifier{
 		FormModel:  formModel,
 		FieldModel: fieldModel,
+		PageModel:  pageModel,
 	}
 	return &Classifier{fc: fc}, nil
 }
@@ -87,7 +113,7 @@ func Evaluate(dataDir string, config *EvalConfig) (*EvalResult, error) {
 		verbose = config.Verbose
 	}
 
-	store := storage.NewStorage(dataDir)
+	store := storage.NewStorage(filepath.Join(dataDir, "forms"))
 	opts := storage.DefaultIterOptions()
 	opts.Verbose = verbose
 	annotations, err := store.IterAnnotations(opts)
@@ -166,6 +192,54 @@ func Evaluate(dataDir string, config *EvalConfig) (*EvalResult, error) {
 		}
 		if result.SequenceTotal > 0 {
 			result.SequenceAccuracy = float64(result.SequenceCorrect) / float64(result.SequenceTotal)
+		}
+	}
+
+	// Evaluate page types (if page data exists)
+	pagesDir := filepath.Join(dataDir, "pages")
+	if _, err := os.Stat(filepath.Join(pagesDir, "index.json")); err == nil {
+		pageStore := storage.NewPageStorage(pagesDir)
+		pageOpts := storage.DefaultIterOptions()
+		pageOpts.Verbose = verbose
+		pageAnnotations, err := pageStore.IterPageAnnotations(pageOpts)
+		if err != nil {
+			slog.Warn("Failed to load page annotations for evaluation", "error", err)
+		} else if len(pageAnnotations) > 0 {
+			docs, formResults, urls, labels := extractPageTrainingData(pageAnnotations, nil)
+			groups := pageDomainGroups(pageAnnotations)
+			folds := groupKFold(groups, nFolds)
+
+			for _, testIdx := range folds {
+				testSet := makeTestSet(len(docs), testIdx)
+				trainDocs, trainFormResults, trainURLs, trainLabels := filterPageByIndex(docs, formResults, urls, labels, testSet, false)
+				pageConfig := classifier.DefaultPageTypeTrainConfig()
+
+				// Train form model for this fold to get form features
+				formStore := storage.NewStorage(filepath.Join(dataDir, "forms"))
+				formOpts := storage.DefaultIterOptions()
+				formAnns, _ := formStore.IterAnnotations(formOpts)
+				formAnnotated := filterFormAnnotated(formAnns)
+				trainForms, trainFormLabels := extractFormTrainingData(formAnnotated)
+				foldFormModel := classifier.TrainFormType(trainForms, trainFormLabels, classifier.DefaultFormTypeTrainConfig())
+
+				// Get form results for training docs
+				for i, doc := range trainDocs {
+					trainFormResults[i] = classifyFormsOnDoc(foldFormModel, doc)
+				}
+
+				pageModel := classifier.TrainPageType(trainDocs, trainFormResults, trainURLs, trainLabels, pageConfig)
+
+				for _, idx := range testIdx {
+					formRes := classifyFormsOnDoc(foldFormModel, docs[idx])
+					if pageModel.Classify(docs[idx], formRes) == labels[idx] {
+						result.PageCorrect++
+					}
+					result.PageTotal++
+				}
+			}
+			if result.PageTotal > 0 {
+				result.PageAccuracy = float64(result.PageCorrect) / float64(result.PageTotal)
+			}
 		}
 	}
 
@@ -314,4 +388,72 @@ func filterByIndex(forms []*goquery.Selection, labels []string, testSet []bool, 
 		}
 	}
 	return outForms, outLabels
+}
+
+// --- page classifier helpers ---
+
+func extractPageTrainingData(annotations []storage.PageAnnotation, formModel *classifier.FormTypeModel) ([]*goquery.Document, [][]classifier.ClassifyResult, []string, []string) {
+	docs := make([]*goquery.Document, 0, len(annotations))
+	formResults := make([][]classifier.ClassifyResult, 0, len(annotations))
+	urls := make([]string, 0, len(annotations))
+	labels := make([]string, 0, len(annotations))
+
+	for _, ann := range annotations {
+		doc, err := htmlutil.LoadHTMLString(ann.HTML)
+		if err != nil {
+			continue
+		}
+
+		var results []classifier.ClassifyResult
+		if formModel != nil {
+			results = classifyFormsOnDoc(formModel, doc)
+		}
+
+		docs = append(docs, doc)
+		formResults = append(formResults, results)
+		urls = append(urls, ann.URL)
+		labels = append(labels, ann.TypeFull)
+	}
+
+	return docs, formResults, urls, labels
+}
+
+func classifyFormsOnDoc(formModel *classifier.FormTypeModel, doc *goquery.Document) []classifier.ClassifyResult {
+	forms := htmlutil.GetForms(doc)
+	results := make([]classifier.ClassifyResult, len(forms))
+	for i, form := range forms {
+		results[i] = classifier.ClassifyResult{
+			Form: formModel.Classify(form),
+		}
+	}
+	return results
+}
+
+func pageDomainGroups(annotations []storage.PageAnnotation) []int {
+	groups := make([]int, len(annotations))
+	domainMap := make(map[string]int)
+	for i, ann := range annotations {
+		domain := storage.GetDomain(ann.URL)
+		if _, ok := domainMap[domain]; !ok {
+			domainMap[domain] = len(domainMap)
+		}
+		groups[i] = domainMap[domain]
+	}
+	return groups
+}
+
+func filterPageByIndex(docs []*goquery.Document, formResults [][]classifier.ClassifyResult, urls, labels []string, testSet []bool, isTest bool) ([]*goquery.Document, [][]classifier.ClassifyResult, []string, []string) {
+	var outDocs []*goquery.Document
+	var outFormResults [][]classifier.ClassifyResult
+	var outURLs []string
+	var outLabels []string
+	for i := range docs {
+		if testSet[i] == isTest {
+			outDocs = append(outDocs, docs[i])
+			outFormResults = append(outFormResults, formResults[i])
+			outURLs = append(outURLs, urls[i])
+			outLabels = append(outLabels, labels[i])
+		}
+	}
+	return outDocs, outFormResults, outURLs, outLabels
 }

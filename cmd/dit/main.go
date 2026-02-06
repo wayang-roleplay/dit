@@ -379,7 +379,7 @@ func main() {
 	var runProba bool
 	runCmd := &cobra.Command{
 		Use:   "run <url-or-file>",
-		Short: "Classify forms in a URL or HTML file",
+		Short: "Classify page type and forms in a URL or HTML file",
 		Args:  cobra.ExactArgs(1),
 		Example: `  dit run https://github.com/login
   dit run login.html
@@ -413,29 +413,45 @@ func main() {
 
 			start = time.Now()
 			if runProba {
-				results, err := c.ExtractFormsProba(htmlContent, runThreshold)
-				if err != nil {
-					return err
+				pageResult, pageErr := c.ExtractPageTypeProba(htmlContent, runThreshold)
+				if pageErr == nil {
+					slog.Debug("Page+form classification completed", "duration", time.Since(start))
+					output, _ := json.MarshalIndent(pageResult, "", "  ")
+					fmt.Println(string(output))
+				} else {
+					// Fall back to form-only classification
+					results, err := c.ExtractFormsProba(htmlContent, runThreshold)
+					if err != nil {
+						return err
+					}
+					slog.Debug("Form classification completed", "forms", len(results), "duration", time.Since(start))
+					if len(results) == 0 {
+						fmt.Println("No forms found.")
+						return nil
+					}
+					output, _ := json.MarshalIndent(results, "", "  ")
+					fmt.Println(string(output))
 				}
-				slog.Debug("Classification completed", "forms", len(results), "duration", time.Since(start))
-				if len(results) == 0 {
-					fmt.Println("No forms found.")
-					return nil
-				}
-				output, _ := json.MarshalIndent(results, "", "  ")
-				fmt.Println(string(output))
 			} else {
-				results, err := c.ExtractForms(htmlContent)
-				if err != nil {
-					return err
+				pageResult, pageErr := c.ExtractPageType(htmlContent)
+				if pageErr == nil {
+					slog.Debug("Page+form classification completed", "duration", time.Since(start))
+					output, _ := json.MarshalIndent(pageResult, "", "  ")
+					fmt.Println(string(output))
+				} else {
+					// Fall back to form-only classification
+					results, err := c.ExtractForms(htmlContent)
+					if err != nil {
+						return err
+					}
+					slog.Debug("Form classification completed", "forms", len(results), "duration", time.Since(start))
+					if len(results) == 0 {
+						fmt.Println("No forms found.")
+						return nil
+					}
+					output, _ := json.MarshalIndent(results, "", "  ")
+					fmt.Println(string(output))
 				}
-				slog.Debug("Classification completed", "forms", len(results), "duration", time.Since(start))
-				if len(results) == 0 {
-					fmt.Println("No forms found.")
-					return nil
-				}
-				output, _ := json.MarshalIndent(results, "", "  ")
-				fmt.Println(string(output))
 			}
 			return nil
 		},
@@ -471,6 +487,10 @@ func main() {
 					result.FieldAccuracy*100, result.FieldCorrect, result.FieldTotal)
 				fmt.Printf("Sequence accuracy: %.1f%% (%d/%d forms)\n",
 					result.SequenceAccuracy*100, result.SequenceCorrect, result.SequenceTotal)
+			}
+			if result.PageTotal > 0 {
+				fmt.Printf("Page type accuracy: %.1f%% (%d/%d)\n",
+					result.PageAccuracy*100, result.PageCorrect, result.PageTotal)
 			}
 			return nil
 		},

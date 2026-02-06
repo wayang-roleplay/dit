@@ -1,7 +1,7 @@
-// Package dit classifies HTML form and field types.
+// Package dit classifies HTML form, field, and page types.
 //
-// It provides a two-stage ML pipeline: logistic regression for form types
-// and a CRF model for field types.
+// It provides a three-stage ML pipeline: logistic regression for form types,
+// a CRF model for field types, and logistic regression for page types.
 //
 //	c, _ := dit.New()
 //	results, _ := c.ExtractForms(htmlString)
@@ -9,6 +9,9 @@
 //	    fmt.Println(r.Type)   // "login"
 //	    fmt.Println(r.Fields) // {"username": "username or email", "password": "password"}
 //	}
+//
+//	page, _ := c.ExtractPageType(htmlString)
+//	fmt.Println(page.Type) // "login"
 package dit
 
 import (
@@ -34,6 +37,18 @@ type FormResult struct {
 type FormResultProba struct {
 	Type   map[string]float64            `json:"type"`
 	Fields map[string]map[string]float64 `json:"fields,omitempty"`
+}
+
+// PageResult holds the page type classification result.
+type PageResult struct {
+	Type  string       `json:"type"`
+	Forms []FormResult `json:"forms,omitempty"`
+}
+
+// PageResultProba holds probability-based page type classification results.
+type PageResultProba struct {
+	Type  map[string]float64 `json:"type"`
+	Forms []FormResultProba  `json:"forms,omitempty"`
 }
 
 // New loads the classifier from "model.json", searching the current directory
@@ -131,4 +146,60 @@ func (c *Classifier) ExtractFormsProba(html string, threshold float64) ([]FormRe
 		}
 	}
 	return out, nil
+}
+
+// ExtractPageType classifies the page type and all forms in the HTML.
+func (c *Classifier) ExtractPageType(html string) (*PageResult, error) {
+	if c.fc == nil || c.fc.FormModel == nil {
+		return nil, fmt.Errorf("dit: classifier not initialized")
+	}
+	if c.fc.PageModel == nil {
+		return nil, fmt.Errorf("dit: page model not available")
+	}
+
+	formResults, pageResult, _, err := c.fc.ExtractPage(html, false, 0, true)
+	if err != nil {
+		return nil, fmt.Errorf("dit: %w", err)
+	}
+
+	forms := make([]FormResult, len(formResults))
+	for i, r := range formResults {
+		forms[i] = FormResult{
+			Type:   r.Result.Form,
+			Fields: r.Result.Fields,
+		}
+	}
+
+	return &PageResult{
+		Type:  pageResult.Form,
+		Forms: forms,
+	}, nil
+}
+
+// ExtractPageTypeProba classifies the page type with probabilities.
+func (c *Classifier) ExtractPageTypeProba(html string, threshold float64) (*PageResultProba, error) {
+	if c.fc == nil || c.fc.FormModel == nil {
+		return nil, fmt.Errorf("dit: classifier not initialized")
+	}
+	if c.fc.PageModel == nil {
+		return nil, fmt.Errorf("dit: page model not available")
+	}
+
+	formResults, _, pageProba, err := c.fc.ExtractPage(html, true, threshold, true)
+	if err != nil {
+		return nil, fmt.Errorf("dit: %w", err)
+	}
+
+	forms := make([]FormResultProba, len(formResults))
+	for i, r := range formResults {
+		forms[i] = FormResultProba{
+			Type:   r.Proba.Form,
+			Fields: r.Proba.Fields,
+		}
+	}
+
+	return &PageResultProba{
+		Type:  pageProba.Form,
+		Forms: forms,
+	}, nil
 }
