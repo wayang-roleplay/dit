@@ -213,7 +213,21 @@ func Evaluate(dataDir string, config *EvalConfig) (*EvalResult, error) {
 		if err != nil {
 			slog.Warn("Failed to load page annotations for evaluation", "error", err)
 		} else if len(pageAnnotations) > 0 {
-			docs, formResults, urls, labels := extractPageTrainingData(pageAnnotations, nil)
+			// Train form model once for form feature extraction
+			formStore := storage.NewStorage(filepath.Join(dataDir, "forms"))
+			formOpts := storage.DefaultIterOptions()
+			formAnns, _ := formStore.IterAnnotations(formOpts)
+			formAnnotated := filterFormAnnotated(formAnns)
+			trainForms, trainFormLabels := extractFormTrainingData(formAnnotated)
+			foldFormModel := classifier.TrainFormType(trainForms, trainFormLabels, classifier.DefaultFormTypeTrainConfig())
+
+			docs, _, urls, labels := extractPageTrainingData(pageAnnotations, nil)
+			// Compute form results for all docs once
+			allFormResults := make([][]classifier.ClassifyResult, len(docs))
+			for i, doc := range docs {
+				allFormResults[i] = classifyFormsOnDoc(foldFormModel, doc)
+			}
+
 			groups := pageDomainGroups(pageAnnotations)
 			folds := groupKFold(groups, nFolds)
 
@@ -229,27 +243,12 @@ func Evaluate(dataDir string, config *EvalConfig) (*EvalResult, error) {
 
 			for _, testIdx := range folds {
 				testSet := makeTestSet(len(docs), testIdx)
-				trainDocs, trainFormResults, trainURLs, trainLabels := filterPageByIndex(docs, formResults, urls, labels, testSet, false)
+				trainDocs, trainFormResults, trainURLs, trainLabels := filterPageByIndex(docs, allFormResults, urls, labels, testSet, false)
 				pageConfig := classifier.DefaultPageTypeTrainConfig()
-
-				// Train form model for this fold to get form features
-				formStore := storage.NewStorage(filepath.Join(dataDir, "forms"))
-				formOpts := storage.DefaultIterOptions()
-				formAnns, _ := formStore.IterAnnotations(formOpts)
-				formAnnotated := filterFormAnnotated(formAnns)
-				trainForms, trainFormLabels := extractFormTrainingData(formAnnotated)
-				foldFormModel := classifier.TrainFormType(trainForms, trainFormLabels, classifier.DefaultFormTypeTrainConfig())
-
-				// Get form results for training docs
-				for i, doc := range trainDocs {
-					trainFormResults[i] = classifyFormsOnDoc(foldFormModel, doc)
-				}
-
 				pageModel := classifier.TrainPageType(trainDocs, trainFormResults, trainURLs, trainLabels, pageConfig)
 
 				for _, idx := range testIdx {
-					formRes := classifyFormsOnDoc(foldFormModel, docs[idx])
-					pred := pageModel.Classify(docs[idx], formRes)
+					pred := pageModel.Classify(docs[idx], allFormResults[idx])
 					true_ := labels[idx]
 					if pred == true_ {
 						result.PageCorrect++

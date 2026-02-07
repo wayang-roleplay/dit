@@ -160,7 +160,7 @@ func (e PageBodyTextExtractor) ExtractDict(_ *goquery.Document, _ []ClassifyResu
 	return nil
 }
 func (e PageBodyTextExtractor) ExtractString(doc *goquery.Document, _ []ClassifyResult) string {
-	return htmlutil.GetBodyText(doc, 2000)
+	return htmlutil.GetBodyText(doc, 500)
 }
 
 // PageURLExtractor extracts URL path patterns.
@@ -194,7 +194,6 @@ func DefaultPageFeaturePipelines() []PageFeaturePipeline {
 		{Name: "page css", Extractor: PageCSSExtractor{}, VecType: "tfidf", NgramRange: [2]int{4, 5}, MinDF: 2, Binary: true, Analyzer: "char_wb"},
 		{Name: "page nav text", Extractor: PageNavTextExtractor{}, VecType: "tfidf", NgramRange: [2]int{1, 2}, MinDF: 2, Binary: true, Analyzer: "word"},
 		{Name: "form type summary", Extractor: FormTypeSummaryExtractor{}, VecType: "dict"},
-		{Name: "page body text", Extractor: PageBodyTextExtractor{}, VecType: "tfidf", NgramRange: [2]int{1, 2}, MinDF: 3, Binary: true, Analyzer: "word", UseEnglishStop: true},
 		{Name: "page url", Extractor: PageURLExtractor{}, VecType: "tfidf", NgramRange: [2]int{5, 6}, MinDF: 2, Binary: true, Analyzer: "char_wb"},
 	}
 }
