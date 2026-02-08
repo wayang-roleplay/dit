@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chromedp/chromedp"
 	"github.com/happyhackingspace/dit"
 	"github.com/spf13/cobra"
 )
@@ -358,6 +360,44 @@ func loadOrDownloadModel(modelPath string) (*dit.Classifier, error) {
 	return dit.Load(dest)
 }
 
+func fetchHTMLRender(url string, timeout time.Duration) (string, error) {
+	httpClient := &http.Client{
+		Timeout: timeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("stopped after 10 redirects")
+			}
+			return nil
+		},
+	}
+
+	resp, err := httpClient.Head(url)
+	if err != nil {
+		return "", fmt.Errorf("redirect check: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	finalURL := resp.Request.URL.String()
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	ctx, cancel = chromedp.NewContext(ctx)
+	defer cancel()
+
+	var htmlContent string
+	err = chromedp.Run(ctx,
+		chromedp.Navigate(finalURL),
+		chromedp.WaitReady("body"),
+		chromedp.OuterHTML("html", &htmlContent),
+	)
+	if err != nil {
+		return "", fmt.Errorf("render browser: %w", err)
+	}
+
+	return htmlContent, nil
+}
+
 func fetchHTML(target string) (string, error) {
 	if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") {
 		resp, err := http.Get(target)
@@ -427,6 +467,8 @@ func main() {
 	var runModelPath string
 	var runThreshold float64
 	var runProba bool
+	var runRender bool
+	var runTimeout int
 	runCmd := &cobra.Command{
 		Use:   "run <url-or-file>",
 		Short: "Classify page type and forms in a URL or HTML file",
@@ -435,6 +477,7 @@ func main() {
   dit run login.html
   dit run https://github.com/login --proba
   dit run https://github.com/login --proba --threshold 0.1
+  dit run https://github.com/login --render
   dit run https://github.com/login --model custom.json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := args[0]
@@ -446,8 +489,13 @@ func main() {
 			}
 			slog.Debug("Model loaded", "duration", time.Since(start))
 
-			slog.Debug("Fetching HTML", "target", target)
-			htmlContent, err := fetchHTML(target)
+			slog.Debug("Fetching HTML", "target", target, "render", runRender)
+			var htmlContent string
+			if runRender && (strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://")) {
+				htmlContent, err = fetchHTMLRender(target, time.Duration(runTimeout)*time.Second)
+			} else {
+				htmlContent, err = fetchHTML(target)
+			}
 			if err != nil {
 				return err
 			}
@@ -501,6 +549,8 @@ func main() {
 	runCmd.Flags().StringVar(&runModelPath, "model", "", "Path to model file (default: auto-detect or download)")
 	runCmd.Flags().Float64Var(&runThreshold, "threshold", 0.05, "Minimum probability threshold")
 	runCmd.Flags().BoolVar(&runProba, "proba", false, "Show probabilities")
+	runCmd.Flags().BoolVar(&runRender, "render", false, "Use render browser for JavaScript-rendered pages")
+	runCmd.Flags().IntVar(&runTimeout, "timeout", 30, "Render browser timeout in seconds")
 
 	var evalDataFolder string
 	var evalCVFolds int
