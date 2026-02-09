@@ -5,6 +5,7 @@ go 1.25.7
 require (
 	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/chromedp/chromedp v0.14.2
+	github.com/creativeprojects/go-selfupdate v1.5.2
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/net v0.49.0
 )
